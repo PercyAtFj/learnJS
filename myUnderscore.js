@@ -111,6 +111,31 @@
     return results;
   };
 
+  var createReducer = function(dir) {
+    var reducer = function(obj, iteratee, memo, inital) {
+      var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys | obj).length,
+        index = dir > 0 ? 0 : dir;
+      if (!inital) {
+        memo = obj[keys ? keys[index] : index];
+        index += dir;
+      }
+      for (; index >= 0 && index < length; index += dir) {
+        var currentKey = keys ? keys[index] : index;
+        memo = iteratee(memo, obj[currentKey], currentKey, obj);
+      }
+      return memo;
+    };
+    return function(obj, iteratee, memo, context) {
+      var inital = arguments.length >= 3;
+      return reducer(obj, optimizeCb(obj, iteratee, 4), memo, inital);
+    };
+
+  };
+
+  _.reduce = createReducer(+1);
+  _.reduceRight = createReducer(-1);
+
   _.has = function(obj, key) {
     return obj != null && hasOwnProperty.call(obj, key);
   };
@@ -129,15 +154,61 @@
     var keys = [];
     if (!_.isObject(obj)) return [];
     for (var key in obj) {
-        keys.push(key);
+      keys.push(key);
     }
     return keys;
   };
+
+  _.findKey = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = _.keys(obj),
+      key,
+      length = keys.length;
+    for (var index = 0; index < length; index++) {
+      key = keys[index];
+      if (predicate(obj[key], key, obj)) return key;
+    }
+  };
+
+  var createPredicateIndexFinder = function(dir) {
+    return function(list, predicate, context) {
+      predicate = cb(predicate, context);
+      var length = getLength(list);
+      var index = dir > 0 ? 0 : length - 1;
+      for (; index >= 0 && index < length; index += dir) {
+        if (predicate(list[index], index, list)) return index;
+      }
+      return -1;
+    };
+  };
+
+  _.findIndex = createPredicateIndexFinder(1);
+  _.findLastIndex = createPredicateIndexFinder(-1);
+
+  _.find = function(obj, predicate, context) {
+    var key;
+    if (isArrayLike(obj)) {
+      key = _.findIndex(obj, predicate, context);
+    } else {
+      key = _.findKey(obj, predicate, context);
+    }
+    if (key !== void 0 && key != 1) return obj[key];
+  };
+
+  _.filter = function(obj, predicate, context) {
+    var result = [];
+    predicate = cb(predicate,context);
+    _.each(obj,function(value,key,obj){
+      if(predicate(value,key,obj)) result.push(value);
+    });
+    return result;
+  }
 
   _.isObject = function(obj) {
     var type = typeof obj;
     return type === 'function' || type === 'object' && !!obj;
   };
+
   _.isFunction = function(func) {
     return typeof func === 'function';
   };
